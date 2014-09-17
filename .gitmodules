@@ -1,0 +1,9 @@
+[submodule "syntactic-closures-macro-system"]
+	path = syntactic-closures-macro-system
+	url = https://github.com/orchid-hybrid/syntactic-closures-macro-system.git
+[submodule "pattern-matcher"]
+	path = pattern-matcher
+	url = https://github.com/orchid-hybrid/pattern-matcher.git
+[submodule "c-exprs"]
+	path = c-exprs
+	url = https://github.com/orchid-hybrid/c-exprs.git
