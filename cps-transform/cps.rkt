@@ -1,0 +1,90 @@
+#lang racket
+(require "../pattern-matcher/pattern-matcher.rkt")
+
+(define (primitive-value? expr)
+  (or (null? expr)
+      (symbol? expr)
+      (number? expr)
+      (string? expr)
+      (boolean? expr)
+      (char? expr)))
+
+(define-language scheme scheme?
+  (prim primitive-value?)
+  (var symbol?)
+  (lambda `(lambda (,symbol? ...) ,scheme?))
+  (quote `(quote ,scheme?))
+  (if `(if ,scheme? ,scheme? ,scheme?))
+  (begin `(begin ,scheme? ...))
+  (app `(,scheme? ...)))
+
+;; CPS transform [taken from http://matt.might.net/articles/cps-conversion/ - thanks to Matt Might]
+
+(define (T-k e k)
+  (match-language scheme e
+    (prim => (lambda (e) (k (M e))))
+    (var => (lambda (e) (k (M e))))
+    (lambda => (lambda (vars body) (k (M e))))
+    (quote => (lambda (e_) (k (M e))))
+    (if => (lambda (c p q)
+             (let* (($rv (gensym '$rv))
+                    (cont `(lambda(,$rv) ,(k $rv))))
+               (T-c e cont))))
+    (begin => (lambda (ss)
+                (cond ((eq? (length ss) 1)
+                       (T-k (cadr e) k))
+                      (else
+                       (T-k (cadr e) (lambda (_)
+                                        (T-k `(begin . ,(cddr e)) k)))))))
+    (app => (lambda (f)
+              (let* ((rv (gensym "rv"))
+                     (cont `(lambda (,rv) ,(k rv))))
+                (T-c e cont))))))
+
+(define (T-c e c)
+  (match-language scheme e
+    (prim => (lambda (e) `(,c ,(M e))))
+    (var => (lambda (e) `(,c ,(M e))))
+    (lambda => (lambda (vars body) `(,c ,(M e))))
+    (quote => (lambda (e_) `(,c ,(M e))))
+    (if => (lambda (c p q)
+             (let* ((k (gensym "k")))
+               (let ((bool (cadr e))
+                     (thn (caddr e))
+                     (els (cadddr e)))
+                 (let ((if-form
+                        (lambda (v)
+                          (T-k bool (lambda (aexp)
+                                      `(if ,aexp 
+                                           ,(T-c thn v)
+                                           ,(T-c els v)))))))
+                   (if (symbol? c)
+                       (if-form c)
+                       (let (($k (gensym '$k)))
+                         `((lambda (,$k) ,(if-form $k)) ,c))))))))
+    (begin => (lambda (ss)
+                (cond ((eq? (length ss) 1)
+                       (T-c (cadr e) c))
+                      (else
+                       (T-k (cadr e) (lambda (_)
+                                          (T-c `(begin . ,(cddr e)) c)))))))
+    (app => (lambda (f)
+              (let ((f (car e)) (args (cdr e)))
+                (T-k f (lambda (fk)
+                         (T*-k args (lambda (argsk)
+                                      `(,fk ,c . ,argsk))))))))))
+
+(define (T*-k exprs k)
+  (cond ((null? exprs) (k '()))
+        ((pair? exprs) (T-k (car exprs) (lambda (hd)
+                                          (T*-k (cdr exprs) (lambda (tl)
+                                                              (k (cons hd tl)))))))))
+
+(define (M aexpr)
+  (cond ((pattern? '(lambda _ _) aexpr)
+         (let ((k (gensym "k")) (vars (cadr aexpr)) (body (caddr aexpr)))
+           `(lambda (,k . ,vars) ,(T-c body k))))
+        ((or (primitive-value? aexpr) (pattern? '(quote _) aexpr)) aexpr)
+        (else (error "not an aexpr in M!"))))
+
+(define (cps-transform e) (T-c e 'halt))
