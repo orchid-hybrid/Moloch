@@ -1,4 +1,11 @@
 #lang racket
+
+(provide scm-parse-file
+         pretty-print*)
+
+(define (pretty-print* form)
+  (pretty-print form (current-output-port) 1))
+
 (define (all p l)
   (if (null? l)
       #t
@@ -128,7 +135,7 @@
   (let ((reader (reader-for (peek-char input-stream))))
     (if reader
         (reader input-stream)
-        (let-values ([(line col pos) (port-next-location input-stream)])
+        (let-values (((line col pos) (port-next-location input-stream)))
           (error "no reader for character: " (peek-char input-stream) " on line " line )))))
 
 (define (scm-read* sexps input-stream)
