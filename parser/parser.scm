@@ -1,49 +1,10 @@
+#lang racket
 (define (all p l)
   (if (null? l)
       #t
       (if (p (car l))
           (all p (cdr l))
           #f)))
-
-(define (wrap-port-with-line-tracking port)
-  (let ((line 1))
-    (define (read-char*)
-      (let ((c (read-char port)))
-        (if (equal? #\newline c)
-            (set! line (+ line 1))
-            #f)
-        c))
-    (define (char-ready?*)
-      (char-ready port))
-    (define (close*)
-      (close port))
-    (define (peek-char*)
-      (peek-char port))
-    (cons (lambda () line)
-          (make-input-port read-char* char-ready?* close* peek-char*))))
-
-(define (make-cell v)
-  (cons 'cell v))
-
-(define (set-cell! cell value)
-  (set-cdr! cell value))
-
-(define (cell-value cell)
-  (cdr cell))
-
-(define (collector)
-  (let ((list (make-cell '()))
-        (last (make-cell '())))
-    (cons (lambda ()
-            (cell-value list))
-          (lambda (value)
-            (if (null? (cell-value last))
-                (begin
-                  (set-cell! list (cons value '()))
-                  (set-cell! last (cell-value list)))
-                (begin
-                  (set-cdr! (cell-value last) (cons value '()))
-                  (set-cell! last (cdr (cell-value last)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -66,37 +27,29 @@
              (skip-whitespace stream))
       #f))
 
-(define (read-symbol-aux input-stream sym create-symbol)
+(define (read-symbol-aux input-stream memo create-symbol)
   (if (symbolic? (peek-char input-stream))
-      (begin
-        ((cdr sym) (read-char input-stream))
-        (read-symbol-aux input-stream sym create-symbol))
-      (create-symbol ((car sym)))))
+      (read-symbol-aux input-stream (cons (read-char input-stream) memo) create-symbol) 
+      (create-symbol (reverse memo))))
 
-(define (read-symbol get-line input-stream)
+(define (read-symbol input-stream)
   (let ((create-symbol (lambda (cs)
                          (if (all char-numeric? cs)
                              (string->number (list->string cs))
                              (string->symbol (list->string cs))))))
-    (read-symbol-aux input-stream (collector) create-symbol)))
+    (read-symbol-aux input-stream '() create-symbol)))
 
 
 (define (read-string-aux input-stream str)
-    (let ((c (read-char input-stream)))
-      (cond ((eof-object? c)
-             (error "reading terminated before string ended"))
-            ((equal? #\\ c)
-             ((cdr str) (read-char input-stream))
-             (read-string-aux input-stream str))
-            ((equal? #\" c)
-             (list->string ((car str))))
-            (else
-             ((cdr str) c)
-             (read-string-aux input-stream str)))))
+  (let ((c (read-char input-stream)))
+    (cond ((eof-object? c) (error "reading terminated before string ended"))
+          ((equal? #\\ c) (read-string-aux input-stream (cons (read-char input-stream) str)))
+          ((equal? #\" c) (list->string (reverse str)))
+          (else  (read-string-aux input-stream (cons c str))))))
 
-(define (read-string get-line input-stream)
+(define (read-string input-stream)
   (read-char input-stream) ;; we assume this is #\"
-  (read-string-aux input-stream (collector)))
+  (read-string-aux input-stream '()))
 
 (define (read-until-end-of-line input-stream)
   (if (equal? #\newline (read-char input-stream))
@@ -111,7 +64,7 @@
           (assert-code (cdr codes) input-stream)
           (error "unknown character code"))))
 
-(define (finish-reading-char input-stream)
+(define (read-charcode input-stream)  
   (let ((first-char (read-char input-stream)))
     (cond ((or (whitespace? (peek-char input-stream))
                (equal? #\) (peek-char input-stream)))
@@ -124,39 +77,39 @@
            #\newline)
           (else (error "unknown character code")))))
 
-(define (read-whitespace get-line input-stream)
+(define (read-whitespace input-stream)
   (read-char input-stream)
   (skip-whitespace input-stream)
-  (scm-read get-line input-stream))
+  (scm-read input-stream))
 
-(define (read-quoted get-line input-stream)
+(define (read-quoted input-stream)
   (read-char input-stream)
-  (list 'quote (scm-read get-line input-stream)))
+  (list 'quote (scm-read input-stream)))
 
-(define (read-quasiquoted get-line input-stream)
+(define (read-quasiquoted input-stream)
   (read-char input-stream)
-  (list 'quasiquote (scm-read get-line input-stream)))
+  (list 'quasiquote (scm-read input-stream)))
 
-(define (read-unquoted get-line input-stream)
+(define (read-unquoted input-stream)
   (read-char input-stream)
-  (list 'unquote (scm-read get-line input-stream)))
+  (list 'unquote (scm-read input-stream)))
 
-(define (read-list get-line input-stream)
+(define (read-list input-stream)
   (read-char input-stream)
-  (scm-read* (collector) get-line input-stream))
+  (scm-read* '() input-stream))
 
-(define (read-comment get-line input-stream)
+(define (read-comment input-stream)
   (read-until-end-of-line input-stream)
-  (scm-read get-line input-stream))
+  (scm-read input-stream))
 
- (define (read-hash get-line input-stream)
+ (define (read-hash input-stream)
        (read-char input-stream)
        (let ((c (read-char input-stream)))
          (cond
           ((equal? c #\f) #f)
           ((equal? c #\t) #t)
-          ((equal? c #\\) (finish-reading-char input-stream))
-          (else (error "unknown hash code")))))
+          ((equal? c #\\) (read-charcode input-stream))
+          (else (error "unknown hash code: " c)))))
 
 (define (reader-for c)
   (cond
@@ -171,34 +124,34 @@
    ((equal? c #\#) read-hash)
    (else #f)))
 
-(define (scm-read get-line input-stream)
+(define (scm-read input-stream)
   (let ((reader (reader-for (peek-char input-stream))))
     (if reader
-        (reader get-line input-stream)
-        (error "no reader for character: " c " on line " (number->string (get-line))))))
+        (reader input-stream)
+        (let-values ([(line col pos) (port-next-location input-stream)])
+          (error "no reader for character: " (peek-char input-stream) " on line " line )))))
 
-(define (scm-read* sexps get-line input-stream)
+(define (scm-read* sexps input-stream)
   (skip-whitespace input-stream)
   (if (or (eof-object? (peek-char input-stream))
           (equal? #\) (peek-char input-stream)))
       (begin
         (read-char input-stream)
-        ((car sexps)))
+        (reverse sexps))
       (begin
         (skip-whitespace input-stream)
         (if (dot? (peek-char input-stream))
             (begin (read-char input-stream)
-                   (let ((result (append ((car sexps)) (scm-read get-line input-stream))))
+                   (let ((result (reverse (cons (scm-read input-stream) sexps))))
                      (skip-whitespace input-stream)
                      (if (or (eof-object? (peek-char input-stream))
                              (equal? #\) (peek-char input-stream)))
                          (read-char input-stream)
                          (error "stuff after dot"))
                      result))
-            (begin ((cdr sexps) (scm-read get-line input-stream))
-                   (scm-read* sexps get-line input-stream))))))
+            (scm-read* (cons (scm-read input-stream) sexps) input-stream)))))
 
 (define (scm-parse-file filename)
-  (let ((sexps (collector))
-        (line-port (wrap-port-with-line-tracking (open-input-file filename))))
-    (scm-read* sexps (car line-port) (cdr line-port))))
+  (let ((port (open-input-file filename)))
+    (port-count-lines! port)
+    (scm-read* '() port)))
