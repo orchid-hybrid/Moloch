@@ -39,3 +39,8 @@ Parse =>
 * Lexical environment: to correctly handle things like (lambda (let) ... (let ...) ...) we need to carry a lexical environment around while processing terms. Practice for this would be implementing a hygienic macro system
 * Stack frames: We can implement var-args and detect wrong number of args passed using stack-frames, this also opens the door to stack allocation of environments
 * Closure Analysis: We must stack allocate closure/environments when possible
+
+Usage
+=====
+
+To get the code use `git clone --recursive` since it uses submodules
