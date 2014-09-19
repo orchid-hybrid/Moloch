@@ -13,6 +13,17 @@
           (all p (cdr l))
           #f)))
 
+
+(define (reverse-imp ls)
+  (define (reverse-imp-aux ls acc)
+    (if (null? ls)
+        acc
+        (reverse-imp-aux (cdr ls) (cons (car ls) acc))))
+  (if (null? ls)
+      ls
+      (reverse-imp-aux (cdr ls) (car ls))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;
@@ -149,7 +160,7 @@
         (skip-whitespace input-stream)
         (if (dot? (peek-char input-stream))
             (begin (read-char input-stream)
-                   (let ((result (reverse (cons (scm-read input-stream) sexps))))
+                   (let ((result (reverse-imp (cons (scm-read input-stream) sexps))))
                      (skip-whitespace input-stream)
                      (if (or (eof-object? (peek-char input-stream))
                              (equal? #\) (peek-char input-stream)))
