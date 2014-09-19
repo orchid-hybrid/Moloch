@@ -1,5 +1,6 @@
 #lang racket
 (require "../pattern-matcher/pattern-matcher.rkt")
+(provide cps-transform)
 
 (define (primitive-value? expr)
   (or (null? expr)
