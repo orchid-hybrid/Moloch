@@ -7,3 +7,6 @@
 [submodule "c-exprs"]
 	path = c-exprs
 	url = https://github.com/orchid-hybrid/c-exprs.git
+[submodule "scheme-testing-code"]
+	path = scheme-testing-code
+	url = https://github.com/orchid-hybrid/scheme-testing-code
