@@ -1,0 +1,59 @@
+(1) If the function denoted by the LAMBDA-expression is bound to some variable,
+ and that variable is referenced other than in function position, then the
+ closure is being treated as data, and must be a full (standard CBETA format)
+ closure. If the function itself occurs in non-function position other than in
+ a LAMBDA-combination, it must be fully closed.
+-------------------
+example 1.1:
+(let ((a (lambda () foo)))
+  (bar a))
+       ^ not in function position -- a must be closed
+
+example 1.2:
+(bar (lambda () foo))
+         ^  not in function position -- must be closed
+
+example 1.3:
+((lambda (fun) ...) (lambda () foo)) 
+                       ^ non-functiopn position, but in a LAMBDA-combination
+                         so there is no implication of needing to be closed
+example 1.4:
+((lambda (fun) (bar fun)) (lambda () foo))
+             escapes ^      ^ escapes through body of lambda -- must be closed
+                              just as in example 1.1
+
+------------------
+(2) If the closure is bound to some variable, and that variable is referenced
+ only in function position, but some of these references occur within other
+ partially or fully closed functions, then this function must be partially
+ closed. By this we mean that the environment for the closure must be
+ "consed up", but no pointer to the code need be added on as for a full closure.
+ This function will always be called from places that know the name of the
+ function and so can just perform a GO to the code, but those such places which
+ are within closures must have a complete copy of the necessary environment.
+-----------
+example 2.1:
+(let ((a (lambda (x) (foo x))))
+  (bar (lambda () (a 1))))
+                   ^ referenced ONLY in function position,
+                     so only partial closure is needed
+----------------
+(3) In other cases (functions bound to variables referenced only in function
+ position and never within a closed function, or functions occuring in function
+ position of LAMBDA-combinations), the function need not be closed. This is
+ because the environment can always be fully recovered from the environment at
+ the point of call.
+
+example 3.1:
+(let ((a (lambda (x) (foo x))))
+  (a 1))
+   ^ only reference is in function position, and not in closed function
+     -- function bound to a need not be closed
+
+example 3.2:
+((lambda (x) (foo x)) bar) 
+    ^ need not be closed since it is head of a LAMBDA-combination
+
+
+
+
