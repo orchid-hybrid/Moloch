@@ -15,10 +15,11 @@ The compiler is based on the following steps:
 Parse =>
  Macroexpand =>
   CPS =>
-   CC =>
-    Closure Analysis =>
-     Stack =>
-      Emit C
+   Simplify =>
+    Closure Conversion =>
+     Closure Analysis =>
+      Stack =>
+       Emit C
 
 ### Strategy
 
@@ -40,7 +41,38 @@ Parse =>
 * Stack frames: We can implement var-args and detect wrong number of args passed using stack-frames, this also opens the door to stack allocation of environments
 * Closure Analysis: We must stack allocate closure/environments when possible
 
+
+
+Todo
+====
+
+* Port back to chicken: Racket is frustrating - move back to chicken but need to get all the unit testing and ideally modules happening too.
+
+| Stage        | Status           | Notes |
+| -------------|:-------------|----:|
+| Parser      | Complete! | has nice tests |
+| Macroexpand | Mostly compete| (MAC) |
+| CPS | partially done | add  values/multiple-values, what else?  |
+| Simplification |  | (SIMPL) |
+| Closure Conversion |       | |
+| Closure Analysis |       | (CLOSE) Learn how to do this |
+| Stack |       | (STACK) |
+| Emit C | Done! c-exprs | Sweet! |
+
+
+* (MAC) This is all in syntactic-closures-macro-system. Need to implement and test more forms in prelude/macros.rkt
+* (SIMPL) perform some simplifications such as the following [ensure that they don't break anything]
+ 
+    ((lambda () body)) => body
+    ((lambda (x) (... x ...)) exp) => (... exp ...)
+       (if x is references only once)
+    remove unused arguments to procedures (args have no side effects)
+
+* (CLOSE) The [RABBIT](http://library.readscheme.org/page1.html) and [ORBIT](http://repository.readscheme.org/ftp/papers/orbit-thesis.pdf) papers cover this. Need to understand this better and implement it!
+* (STACK) Designing the stack runtime, implementing it in c-exprs.
+
 Usage
 =====
 
 To get the code use `git clone --recursive` since it uses submodules
+Problem with empty submodules? `git submodule update --init` http://stackoverflow.com/questions/11358082/empty-git-submodule-folder-when-clone
