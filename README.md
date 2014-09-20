@@ -16,7 +16,7 @@ Parse =>
  Macroexpand =>
   CPS =>
    Simplify =>
-    CC =>
+    Closure Conversion =>
      Closure Analysis =>
       Stack =>
        Emit C
@@ -54,7 +54,7 @@ Todo
 | Macroexpand | Mostly compete| (MAC) |
 | CPS | partially done | add  values/multiple-values, what else?  |
 | Simplification |  | (SIMPL) |
-| CC |       | |
+| Closure Conversion |       | |
 | Closure Analysis |       | (CLOSE) Learn how to do this |
 | Stack |       | (STACK) |
 | Emit C | Done! c-exprs | Sweet! |
