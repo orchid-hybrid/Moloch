@@ -22,5 +22,4 @@
       (let ((params (map car bindings))
             (args (map cadr bindings)))
         (make-syntactic-closure scheme-macro-environment '()
-          `((lambda ,params . ,body) ,args))))))
-
+          `((lambda ,params . ,body) . ,args))))))
