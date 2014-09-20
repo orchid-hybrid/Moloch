@@ -44,3 +44,4 @@ Usage
 =====
 
 To get the code use `git clone --recursive` since it uses submodules
+Problem with empty submodules? `git submodule update --init` http://stackoverflow.com/questions/11358082/empty-git-submodule-folder-when-clone
